@@ -3,7 +3,10 @@
 import path from 'node:path';
 import { enigmaDir, readJson, writeJson, nowIso, parseArgs, isMain } from './lib/enigma.mjs';
 
-export async function checkpoint(root, { label = 'checkpoint', note = '', scanned = [] } = {}) {
+export async function checkpoint(
+  root,
+  { label = 'checkpoint', note = '', scanned = [], sourceState = {}, queue = null } = {},
+) {
   const stateDir = path.join(enigmaDir(root), 'state');
   const cpFile = path.join(stateDir, 'checkpoints.json');
   const record = { time: nowIso(), label, note };
@@ -11,13 +14,19 @@ export async function checkpoint(root, { label = 'checkpoint', note = '', scanne
   list.push(record);
   await writeJson(cpFile, list);
 
-  if (scanned.length) {
+  const touchesDiscovery = scanned.length || Object.keys(sourceState).length || Array.isArray(queue);
+  if (touchesDiscovery) {
     const dFile = path.join(stateDir, 'discovery.json');
-    const discovery = await readJson(dFile, { sources: {} });
+    const discovery = await readJson(dFile, { sources: {}, queue: [] });
     discovery.sources ??= {};
+    discovery.queue ??= [];
     for (const id of scanned) {
       discovery.sources[id] = { ...(discovery.sources[id] ?? {}), last_scanned: record.time };
     }
+    for (const [id, state] of Object.entries(sourceState)) {
+      discovery.sources[id] = { ...(discovery.sources[id] ?? {}), ...state };
+    }
+    if (Array.isArray(queue)) discovery.queue = queue;
     await writeJson(dFile, discovery);
   }
   return record;
@@ -31,6 +40,8 @@ if (isMain(import.meta.url)) {
     label: typeof args.label === 'string' ? args.label : 'checkpoint',
     note: typeof args.note === 'string' ? args.note : '',
     scanned,
+    sourceState: typeof args['source-state'] === 'string' ? JSON.parse(args['source-state']) : {},
+    queue: typeof args.queue === 'string' ? JSON.parse(args.queue) : null,
   });
   console.log(JSON.stringify(record));
 }
