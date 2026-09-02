@@ -8,5 +8,3 @@ Enigma understands how the company works before helping the manager decide:
 sources your harness already exposes (Jira, Confluence, Slack, GitHub, local
 docs — read-only, never bypassing permissions), and `/enigma:status <project>`
 produces an evidence-gated status assessment via independent oracle agents.
-
-Design spec: `docs/superpowers/specs/2026-09-02-enigma-plugin-design.md`.
