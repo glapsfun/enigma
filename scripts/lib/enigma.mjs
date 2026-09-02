@@ -3,6 +3,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { createHash } from 'node:crypto';
 
 export const nowIso = () => new Date().toISOString();
 
@@ -89,4 +90,54 @@ export function parseArgs(argv, booleanFlags = []) {
 
 export function isMain(importMetaUrl) {
   return Boolean(process.argv[1]) && importMetaUrl === pathToFileURL(process.argv[1]).href;
+}
+
+export function sha256Hex(text) {
+  return createHash('sha256').update(String(text), 'utf8').digest('hex');
+}
+
+export const STOPWORDS = new Set([
+  'a', 'an', 'and', 'any', 'are', 'as', 'at', 'be', 'been', 'but', 'by', 'can',
+  'do', 'does', 'for', 'from', 'had', 'has', 'have', 'he', 'her', 'his', 'how',
+  'if', 'in', 'into', 'is', 'it', 'its', 'may', 'more', 'no', 'not', 'of', 'on',
+  'only', 'or', 'other', 'our', 'out', 'over', 'she', 'should', 'so', 'some',
+  'such', 'than', 'that', 'the', 'their', 'them', 'then', 'there', 'these',
+  'they', 'this', 'to', 'up', 'was', 'we', 'were', 'what', 'when', 'which',
+  'who', 'why', 'will', 'with', 'would', 'you', 'your',
+]);
+
+export function tokenize(text) {
+  if (typeof text !== 'string') return [];
+  return text.toLowerCase().split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 1 && !STOPWORDS.has(t));
+}
+
+export function evidenceId(sourceType, contentHash) {
+  return `${sourceType}-${String(contentHash).slice(0, 8)}`;
+}
+
+export function evidenceFileFor(root, id) {
+  const cut = id.lastIndexOf('-');
+  const type = cut > 0 ? id.slice(0, cut) : 'unknown';
+  return path.join(enigmaDir(root), 'evidence', type, `${id}.json`);
+}
+
+export async function readEvidence(root) {
+  const evDir = path.join(enigmaDir(root), 'evidence');
+  let dirents;
+  try {
+    dirents = await fs.readdir(evDir, { withFileTypes: true });
+  } catch (err) {
+    if (err.code === 'ENOENT') return [];
+    throw err;
+  }
+  const items = [];
+  for (const d of dirents) {
+    if (!d.isDirectory()) continue;
+    for (const name of await fs.readdir(path.join(evDir, d.name))) {
+      if (!name.endsWith('.json')) continue;
+      items.push(await readJson(path.join(evDir, d.name, name)));
+    }
+  }
+  return items;
 }
