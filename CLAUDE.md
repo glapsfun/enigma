@@ -8,14 +8,14 @@ Enigma is a **Claude Code plugin** (repo root = plugin root, manifest in `.claud
 
 ## Commands
 
-No `package.json`, no install step. Node ≥ 18, **stdlib only — never add npm dependencies**.
+No `package.json`, no install step. Node ≥ 22, **stdlib only — never add npm dependencies**.
 
 ```bash
 node --test 'scripts/test/*.test.mjs'         # all tests (or bare `node --test`)
 node --test scripts/test/smoke.test.mjs        # one file
 ```
 
-Note: `node --test scripts/test/` (a bare directory) fails on Node ≥ 22 — use the glob form.
+Note: `node --test scripts/test/` (a bare directory) fails on Node ≥ 22 — use the glob form. The glob form itself needs Node ≥ 21, which is why the floor is 22 and CI runs 22.x and 24.x.
 
 Run scripts against a workspace with `--dir <workspace>` (defaults to cwd); all print JSON:
 
@@ -52,7 +52,17 @@ Run tests before every commit. Commit messages: conventional style (`feat:`, `fi
 
 ## Testing fixtures and evals
 
-`fixtures/acme/docs/` is a synthetic company with a planted contradiction (roadmap says June, delivery log/tickets say September, plus an unowned security review). `evals/evals.json` holds three eval prompts that exercise init, status, and contradiction detection against it. Structural plugin checks: `plugin-dev:plugin-validator`.
+`fixtures/acme/docs/` is a synthetic company with a planted contradiction (roadmap says June, delivery log/tickets say September, plus an unowned security review). `evals/evals.json` holds the eval prompts that exercise init, status, and contradiction detection against it. Structural checks: `node scripts/dev/lint-repo.mjs --dir .` and `claude plugin validate .`.
+
+## CI and hooks
+
+`.github/workflows/ci.yml` gates every push and PR: the test suite on Node 22.x and 24.x, `scripts/dev/lint-repo.mjs`, and `claude plugin validate .`. `evals.yml` is `workflow_dispatch` only — evals are nondeterministic and cost API credits, so they never gate a PR.
+
+`scripts/dev/` is developer tooling, not pipeline: `scripts/*.mjs` means "deterministic runtime pipeline script" and `lint-repo.mjs` would otherwise need an exception in its own checks.
+
+`.pre-commit-config.yaml` runs the same tests and linter locally. It is **optional** — CI is the real gate, and `git commit --no-verify` stays a working escape hatch. Install with `pre-commit install`.
+
+The zero-npm rule is intact: CI installs the Claude Code CLI globally on the runner, which is CI tooling, not a repo dependency — it creates no `package.json` and nothing is added to the tree.
 
 ## Repo quirks
 
