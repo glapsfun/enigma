@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Emits the map/memory/ledger slice relevant to one entity as a JSON bundle.
 import path from 'node:path';
-import { enigmaDir, readJson, readJsonl, parseArgs, isMain } from './lib/enigma.mjs';
+import { enigmaDir, readJson, readJsonl, readEvidence, parseArgs, isMain } from './lib/enigma.mjs';
+import { coverage } from './coverage.mjs';
 
 const KINDS = { teams: 'team', people: 'person', projects: 'project', components: 'component' };
 
@@ -42,7 +43,29 @@ export async function loadContext(root, entityId) {
     .filter((e) => relatedIds.has(e.entity))
     .slice(-20);
 
-  return { ok: true, bundle: { entity, kind, team, members, components, relationships: rels, ledger, facts, decisions } };
+  const evidence = (await readEvidence(root))
+    .filter((item) => (item.entities ?? []).some((id) => relatedIds.has(id)))
+    .sort((a, b) => Date.parse(b.fetched_at ?? 0) - Date.parse(a.fetched_at ?? 0))
+    .slice(0, 30);
+  const cov = await coverage(root, entityId);
+
+  return {
+    ok: true,
+    bundle: {
+      entity,
+      kind,
+      aliases: entity.aliases ?? [],
+      team,
+      members,
+      components,
+      relationships: rels,
+      ledger,
+      facts,
+      decisions,
+      evidence,
+      coverage: { sources: cov.sources, queue: cov.queue, entity: cov.entity ?? null },
+    },
+  };
 }
 
 if (isMain(import.meta.url)) {

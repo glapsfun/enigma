@@ -8,8 +8,15 @@ export async function coverage(root, entityId = null) {
   const { sources = [] } = await readJson(path.join(dir, 'index', 'sources.json'), { sources: [] });
   const discovery = await readJson(path.join(dir, 'state', 'discovery.json'), { sources: {}, queue: [] });
 
+  // Union the registry with whatever discovery has actually scanned, so a source
+  // with cursor state but no registry entry is still reported instead of vanishing.
+  const byId = new Map(sources.map((s) => [s.id, s]));
+  for (const id of Object.keys(discovery.sources ?? {})) {
+    if (!byId.has(id)) byId.set(id, { id });
+  }
+
   const out = {};
-  for (const s of sources) {
+  for (const s of byId.values()) {
     const st = discovery.sources?.[s.id] ?? {};
     out[s.id] = {
       consent: s.consent ?? 'unset',
