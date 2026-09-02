@@ -3,8 +3,9 @@
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import {
-  enigmaDir, readJson, readJsonl, envelopeErrors, parseArgs, isMain,
+  enigmaDir, readJson, readJsonl, readEvidence, envelopeErrors, parseArgs, isMain,
 } from './lib/enigma.mjs';
+import { indexIsStale } from './build-index.mjs';
 
 const KINDS = ['teams', 'people', 'projects', 'components'];
 
@@ -59,12 +60,16 @@ export async function validateState(root) {
     errors.push(err.message);
   }
 
-  let ledgerEntities = new Set();
+  let ledgerEntries = [];
   try {
-    ledgerEntities = new Set((await readJsonl(path.join(dir, 'ledger', 'changes.jsonl'))).map((e) => e.entity));
+    ledgerEntries = await readJsonl(path.join(dir, 'ledger', 'changes.jsonl'));
   } catch (err) {
     errors.push(err.message);
   }
+  const ledgerEntities = new Set(ledgerEntries.map((e) => e.entity));
+  const ledgerEvidenceIds = new Set(
+    ledgerEntries.filter((e) => e.type === 'evidence.added').map((e) => e.change?.evidence),
+  );
   for (const kind of KINDS) {
     for (const e of perKind[kind]) {
       if (!ledgerEntities.has(e.id)) {
@@ -73,9 +78,48 @@ export async function validateState(root) {
     }
   }
 
-  if (!(await readJson(path.join(dir, 'index', 'sources.json'), null))) {
-    warnings.push('index/sources.json missing — harness discovery has not run');
+  let evidence = [];
+  try {
+    evidence = await readEvidence(root);
+  } catch (err) {
+    errors.push(err.message);
   }
+  for (const item of evidence) {
+    const where = `evidence/${item.source?.type ?? 'unknown'}/${item.id}.json`;
+    if (typeof item.summary !== 'string' || !item.summary) errors.push(`${where}: summary is required`);
+    if (!Array.isArray(item.entities) || item.entities.length === 0) {
+      errors.push(`${where}: entities must list at least one map id`);
+    } else {
+      for (const id of item.entities) {
+        if (!mapIds.has(id)) errors.push(`${where}: unknown entity "${id}"`);
+      }
+    }
+    if (!ledgerEvidenceIds.has(item.id)) {
+      errors.push(`${where}: no ledger entry — evidence was written outside ingest-evidence.mjs`);
+    }
+  }
+
+  const srcDoc = await readJson(path.join(dir, 'index', 'sources.json'), null);
+  if (!srcDoc) {
+    warnings.push('index/sources.json missing — harness discovery has not run');
+  } else {
+    for (const s of srcDoc.sources ?? []) {
+      if (!['approved', 'excluded', 'limited'].includes(s.consent)) {
+        warnings.push(`sources.json: "${s.id}" has no consent decision — run /enigma:init --reconsent`);
+      }
+    }
+  }
+
+  try {
+    const discovery = await readJson(path.join(dir, 'state', 'discovery.json'), { sources: {}, queue: [] });
+    (discovery.queue ?? []).forEach((q, i) => {
+      if (!mapIds.has(q.area)) warnings.push(`discovery.json queue[${i}]: unknown area "${q.area}"`);
+    });
+  } catch (err) {
+    errors.push(err.message);
+  }
+
+  if (await indexIsStale(root)) warnings.push('index stale — run build-index.mjs');
 
   return { ok: errors.length === 0, errors, warnings };
 }
