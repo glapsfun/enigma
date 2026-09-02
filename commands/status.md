@@ -7,23 +7,40 @@ Produce a status assessment for: $ARGUMENTS
 Follow the invariants in the enigma-core skill. This workflow is READ-ONLY
 toward external systems.
 
-## 1. Validate and load context
+## 1. Validate, resolve, and load context
 
 - `node ${CLAUDE_PLUGIN_ROOT}/scripts/validate-state.mjs --dir .` — on
   errors, stop and report (offer ledger-based reconstruction). If `.enigma/`
   is missing, suggest `/enigma:init` and stop.
 - If `$ARGUMENTS` is empty, list project ids from `.enigma/map/projects.json`
   and ask which one.
-- `node ${CLAUDE_PLUGIN_ROOT}/scripts/load-context.mjs --dir . --entity <id>`
-  — on unknown id, show the `known` list and ask.
+- Resolve the argument — never demand an exact id:
+  `node ${CLAUDE_PLUGIN_ROOT}/scripts/query.mjs --dir . --q "$ARGUMENTS"`
+  - `resolved` is set → use it.
+  - `candidates` has several → ask the user which one, ONCE.
+  - Nothing resolved → say the map has no coverage for that name, show the
+    nearest hits, and offer `/enigma:init --deep <area>`. Do not guess.
+- `node ${CLAUDE_PLUGIN_ROOT}/scripts/load-context.mjs --dir . --entity <resolved id>`
+  The bundle carries `evidence` (quotable excerpts with source refs),
+  `aliases`, and `coverage`.
 
-## 2. Fill evidence gaps (read-only)
+## 2. Check coverage, then fill evidence gaps (read-only)
 
-Compare the bundle against what a status report needs: recent tickets/epics,
-recent PRs/commits, incidents, blockers, stated dates. Fetch ONLY the gaps
-from `available` sources in `.enigma/index/sources.json` (respect the caps in
-enigma-core `references/discovery.md`). Append new evidence to
-`.enigma/memory/facts.jsonl` as envelopes with an `entity` field.
+Read `bundle.coverage` first. If the entity's areas are `depth: none` or
+`shallow`, or its queue entries are not `done`, say so plainly and offer a
+deep pass before fetching anything live — a status built on an unscanned
+area is a guess with a confident tone.
+
+Then compare the bundle against what a status report needs: recent
+tickets/epics, recent PRs/commits, incidents, blockers, stated dates. Fetch
+ONLY the gaps, ONLY from sources whose `consent` is `approved` or `limited`
+in `.enigma/index/sources.json`, respecting the caps in enigma-core
+`references/discovery.md`.
+
+Store what you fetch: new facts as envelopes with an `entity` field appended
+to `.enigma/memory/facts.jsonl`, and new source items through
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/ingest-evidence.mjs --dir . --items <file>`
+followed by `node ${CLAUDE_PLUGIN_ROOT}/scripts/build-index.mjs --dir .`
 
 ## 3. Ask only necessary questions
 
@@ -54,8 +71,11 @@ Evidence / Unknowns) is the core of the report.
 ## 6. Gates and presentation
 
 Run the Context, Evidence, Delivery, and Risk gates from enigma-core
-`references/gates.md`. Report any weak gate in the output ("Evidence Gate:
-weak — no delivery data newer than 3 weeks").
+`references/gates.md`. Report any weak gate in the output, with numbers from
+`node ${CLAUDE_PLUGIN_ROOT}/scripts/coverage.mjs --dir . --entity <id>` — for
+example "Evidence Gate: weak — jira depth shallow, 20 of 310 items read;
+newest delivery evidence 2026-08-11". A gate with no numbers behind it is not
+a gate.
 
 Write `.enigma/reports/status-<id>-<YYYY-MM-DD>.md` containing: title + date, gate
 results, the Judge's assessment verbatim, and a provenance appendix (each
