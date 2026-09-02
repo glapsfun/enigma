@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
   nowIso, enigmaDir, readJson, writeJson, appendJsonl, readJsonl,
   envelopeErrors, parseArgs,
+  sha256Hex, tokenize, evidenceId, evidenceFileFor, readEvidence,
 } from '../lib/enigma.mjs';
 
 const tmp = () => mkdtemp(path.join(tmpdir(), 'enigma-'));
@@ -61,4 +62,44 @@ test('parseArgs parses flags, values, booleans, positionals', () => {
   assert.equal(a.full, true);
   assert.equal(a.entity, 'data-platform');
   assert.deepEqual(a._, ['pos1']);
+});
+
+// --- slice 2 primitives ---
+
+test('sha256Hex is stable 64-char hex', () => {
+  assert.equal(sha256Hex('abc').length, 64);
+  assert.equal(sha256Hex('abc'), sha256Hex('abc'));
+  assert.notEqual(sha256Hex('abc'), sha256Hex('abd'));
+});
+
+test('tokenize lowercases, splits on punctuation, drops stopwords and 1-char tokens', () => {
+  assert.deepEqual(tokenize('The Data-Platform is a Vault dependency!'),
+    ['data', 'platform', 'vault', 'dependency']);
+  assert.deepEqual(tokenize(''), []);
+  assert.deepEqual(tokenize(null), []);
+});
+
+test('evidenceId and evidenceFileFor round-trip a hyphenated source type', () => {
+  const id = evidenceId('cli-gh', 'abcdef0123456789');
+  assert.equal(id, 'cli-gh-abcdef01');
+  assert.equal(evidenceFileFor('/ws', id),
+    path.join('/ws', '.enigma/evidence/cli-gh', 'cli-gh-abcdef01.json'));
+});
+
+test('readEvidence returns [] with no directory and reads every item', async () => {
+  const root = await tmp();
+  assert.deepEqual(await readEvidence(root), []);
+  await mkdir(path.join(root, '.enigma/evidence/jira'), { recursive: true });
+  await writeFile(path.join(root, '.enigma/evidence/jira/jira-aaaaaaaa.json'),
+    JSON.stringify({ id: 'jira-aaaaaaaa', title: 'One' }));
+  await writeFile(path.join(root, '.enigma/evidence/jira/notes.txt'), 'ignored');
+  const items = await readEvidence(root);
+  assert.deepEqual(items.map((i) => i.title), ['One']);
+});
+
+test('readEvidence throws with the file path on corrupt JSON', async () => {
+  const root = await tmp();
+  await mkdir(path.join(root, '.enigma/evidence/docs'), { recursive: true });
+  await writeFile(path.join(root, '.enigma/evidence/docs/docs-bbbbbbbb.json'), '{not json');
+  await assert.rejects(() => readEvidence(root), /docs-bbbbbbbb\.json/);
 });

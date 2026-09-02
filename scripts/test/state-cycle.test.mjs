@@ -46,3 +46,49 @@ test('old scans fall back into refresh after max age', async () => {
   const res = await diffState(root, 24);
   assert.ok(res.refresh.includes('jira'));
 });
+
+test('checkpoint merges per-source cursor state and replaces the queue', async () => {
+  const root = await workspace();
+  await checkpoint(root, {
+    label: 'shallow',
+    scanned: ['jira'],
+    sourceState: { jira: { depth: 'shallow', read: 20, known: 310, complete: false } },
+    queue: [{ area: 'data-platform', source: 'jira', depth: 'deep', status: 'pending' }],
+  });
+  const d = await readJson(path.join(root, '.enigma/state/discovery.json'));
+  assert.equal(d.sources.jira.depth, 'shallow');
+  assert.equal(d.sources.jira.known, 310);
+  assert.ok(d.sources.jira.last_scanned);
+  assert.equal(d.queue.length, 1);
+
+  await checkpoint(root, { label: 'deep', sourceState: { jira: { depth: 'deep', complete: true } } });
+  const after = await readJson(path.join(root, '.enigma/state/discovery.json'));
+  assert.equal(after.sources.jira.depth, 'deep');
+  assert.equal(after.sources.jira.known, 310, 'unrelated cursor fields survive a merge');
+  assert.equal(after.sources.jira.complete, true);
+});
+
+test('diffState reports incomplete sources, excluded consent, and resumable queue entries', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'enigma-'));
+  await writeJson(path.join(root, '.enigma/index/sources.json'), {
+    sources: [
+      { id: 'jira', status: 'available', consent: 'approved' },
+      { id: 'slack', status: 'available', consent: 'excluded' },
+      { id: 'docs', status: 'available', consent: 'approved' },
+    ],
+  });
+  await checkpoint(root, {
+    label: 'shallow',
+    scanned: ['jira', 'docs'],
+    sourceState: { jira: { complete: false }, docs: { complete: true } },
+    queue: [
+      { area: 'data-platform', source: 'jira', depth: 'deep', status: 'pending' },
+      { area: 'vault', source: 'jira', depth: 'deep', status: 'done' },
+    ],
+  });
+  const res = await diffState(root);
+  assert.deepEqual(res.excluded, ['slack']);
+  assert.ok(res.refresh.includes('jira'), 'complete:false always needs refresh');
+  assert.ok(res.fresh.includes('docs'));
+  assert.deepEqual(res.resume.map((q) => q.area), ['data-platform']);
+});

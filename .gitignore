@@ -144,3 +144,6 @@ vite.config.ts.timestamp-*
 
 # AI
 docs/*
+
+# Enigma workspace state (belongs in the user's workspace, never in the plugin repo)
+.enigma/

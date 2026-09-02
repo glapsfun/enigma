@@ -31,15 +31,31 @@ suggest `/enigma:init`; do not fabricate organizational facts.
 7. **Division of labor.** Scripts (in `${CLAUDE_PLUGIN_ROOT}/scripts/`) do
    deterministic work: normalization, ledger, validation, context bundles,
    diffing, checkpoints. You do interpretation, classification, judgment.
+8. **Resolve before load.** Never fail on an unrecognized name. Run
+   `node ${CLAUDE_PLUGIN_ROOT}/scripts/query.mjs --dir . --q "<text>"` first;
+   it resolves ids, aliases, and keywords. Only after it returns nothing do
+   you say the map has no coverage — and then offer a targeted deep pass.
+9. **Evidence is quoted, never laundered.** An excerpt is verbatim source
+   text. Cite evidence by title and source ref. A paraphrase is INFERENCE.
+10. **Indexes are derived.** Rebuild with `build-index.mjs`; never hand-edit
+    `index/entities.json`, `aliases.json`, `keywords.json`, or `topics.json`.
+11. **Consent precedes reading.** No source is read until `sources.json`
+    records its consent. An `excluded` source is never touched.
 
 ## Conversational use (no slash command)
 
 For a management question with `.enigma/` present:
-1. Identify the entity (`node ${CLAUDE_PLUGIN_ROOT}/scripts/load-context.mjs
-   --dir . --entity <id>`; on unknown id, offer the `known` list).
-2. Answer from the bundle, citing provenance status. For a full status
-   assessment, tell the user `/enigma:status <id>` runs the complete
-   oracle pipeline, and offer to run it.
+1. Resolve the subject:
+   `node ${CLAUDE_PLUGIN_ROOT}/scripts/query.mjs --dir . --q "<the user's words>"`
+2. Load the entity:
+   `node ${CLAUDE_PLUGIN_ROOT}/scripts/load-context.mjs --dir . --entity <resolved id>`
+3. Answer from the bundle, citing each finding's provenance status and the
+   evidence title plus source ref it came from. Where coverage is shallow,
+   say so in the answer.
+4. If nothing resolves, say the map has no coverage there and offer
+   `/enigma:init --deep <area>`. Never fill the gap with a guess.
+5. For a full status assessment, tell the user `/enigma:status <id>` runs the
+   complete oracle pipeline, and offer to run it.
 
 ## Reference files
 
@@ -48,3 +64,6 @@ For a management question with `.enigma/` present:
 - `references/discovery.md` — per-source scan recipes and caps
 - `references/engineering-management.md` — EM rubric (People/Delivery/Risk lenses)
 - `references/methodologies.md` — process classification + delivery health
+- Scripts: `build-map`, `load-context`, `update-ledger`, `diff-state`,
+  `validate-state`, `checkpoint`, `ingest-evidence`, `build-index`, `query`,
+  `coverage` — all in `${CLAUDE_PLUGIN_ROOT}/scripts/`

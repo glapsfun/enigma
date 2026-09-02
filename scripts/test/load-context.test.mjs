@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { nowIso, appendJsonl } from '../lib/enigma.mjs';
+import { nowIso, appendJsonl, sha256Hex } from '../lib/enigma.mjs';
+import { ingestEvidence } from '../ingest-evidence.mjs';
+import { checkpoint } from '../checkpoint.mjs';
 import { buildMap } from '../build-map.mjs';
 import { loadContext } from '../load-context.mjs';
 
@@ -56,4 +58,40 @@ test('unknown entity lists known ids', async () => {
   const res = await loadContext(root, 'nope');
   assert.equal(res.ok, false);
   assert.ok(res.known.includes('data-platform'));
+});
+
+test('bundle carries aliases, related evidence newest first, and coverage', async () => {
+  const root = await workspace();
+  await buildMap(root, {
+    entities: { projects: [{ id: 'data-platform', name: 'Data Platform', aliases: ['DP'] }] },
+    relationships: [],
+  });
+  await ingestEvidence(root, [
+    {
+      source: { type: 'jira', ref: 'DATA-1' }, title: 'Older ticket', kind: 'ticket',
+      summary: 'Older.', excerpts: [], entities: ['data-platform'], topics: [],
+      fetched_at: '2026-08-01T00:00:00Z', content_hash: sha256Hex('older'),
+    },
+    {
+      source: { type: 'jira', ref: 'DATA-2' }, title: 'Newer ticket', kind: 'ticket',
+      summary: 'Newer.', excerpts: [], entities: ['airflow'], topics: [],
+      fetched_at: '2026-08-20T00:00:00Z', content_hash: sha256Hex('newer'),
+    },
+    {
+      source: { type: 'jira', ref: 'SEC-9' }, title: 'Unrelated ticket', kind: 'ticket',
+      summary: 'Elsewhere.', excerpts: [], entities: ['vault'], topics: [],
+      fetched_at: '2026-08-25T00:00:00Z', content_hash: sha256Hex('unrelated'),
+    },
+  ]);
+  await checkpoint(root, {
+    label: 'shallow', scanned: ['jira'],
+    sourceState: { jira: { depth: 'shallow', read: 5, known: 90, complete: false } },
+    queue: [{ area: 'data-platform', source: 'jira', depth: 'deep', status: 'pending' }],
+  });
+
+  const res = await loadContext(root, 'data-platform');
+  assert.deepEqual(res.bundle.aliases, ['DP']);
+  assert.deepEqual(res.bundle.evidence.map((e) => e.title), ['Newer ticket', 'Older ticket']);
+  assert.equal(res.bundle.coverage.sources.jira.depth, 'shallow');
+  assert.equal(res.bundle.coverage.entity.pending, 1);
 });

@@ -64,3 +64,32 @@ test('buildMap refuses relationships with unknown endpoints, writes nothing', as
   assert.ok(res.errors.some((e) => e.includes('ghost-team')));
   assert.deepEqual(await readJson(path.join(root, '.enigma/map/teams.json'), []), []);
 });
+
+test('aliases are merged across runs, never overwritten', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'enigma-'));
+  await buildMap(root, {
+    entities: { projects: [{ id: 'data-platform', name: 'Data Platform', aliases: ['DP'] }] },
+    relationships: [],
+  });
+  await buildMap(root, {
+    entities: { projects: [{ id: 'data-platform', name: 'Data Platform', aliases: ['DATA', 'DP'] }] },
+    relationships: [],
+  });
+  const projects = await readJson(path.join(root, '.enigma/map/projects.json'));
+  assert.deepEqual(projects[0].aliases, ['DP', 'DATA']);
+});
+
+test('an entity with no aliases gains no aliases field', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'enigma-'));
+  await buildMap(root, {
+    entities: { components: [{ id: 'vault', name: 'Vault' }] },
+    relationships: [],
+  });
+  await buildMap(root, {
+    entities: { components: [{ id: 'vault', name: 'Vault', kind: 'service' }] },
+    relationships: [],
+  });
+  const components = await readJson(path.join(root, '.enigma/map/components.json'));
+  assert.equal(components[0].aliases, undefined);
+  assert.equal(components[0].kind, 'service');
+});

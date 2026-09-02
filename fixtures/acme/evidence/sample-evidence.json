@@ -1,0 +1,45 @@
+[
+  {
+    "source": { "type": "docs", "ref": "fixtures/acme/docs/roadmap.md" },
+    "title": "Acme roadmap Q3",
+    "kind": "readme",
+    "summary": "Roadmap states a June cutover for the data platform ingestion rewrite.",
+    "excerpts": [
+      { "quote": "Data Platform ingestion cutover: June.", "why": "stated target date" }
+    ],
+    "entities": ["data-platform"],
+    "topics": ["roadmap"],
+    "fetched_at": "2026-08-30T09:00:00Z",
+    "updated_at_source": "2026-06-01T00:00:00Z",
+    "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  {
+    "source": { "type": "docs", "ref": "fixtures/acme/docs/delivery-log.md" },
+    "title": "Delivery log — ingestion rewrite",
+    "kind": "readme",
+    "summary": "Delivery log shows the ingestion rewrite tracking to September, with an unowned security review blocking the cutover.",
+    "excerpts": [
+      { "quote": "Ingestion rewrite now tracking to September.", "why": "contradicts the roadmap's June" },
+      { "quote": "Security review: no owner assigned.", "why": "named blocker with no owner" }
+    ],
+    "entities": ["data-platform", "data-eng"],
+    "topics": ["delivery", "risk"],
+    "fetched_at": "2026-08-30T09:00:00Z",
+    "updated_at_source": "2026-08-28T00:00:00Z",
+    "content_hash": "2222222222222222222222222222222222222222222222222222222222222222"
+  },
+  {
+    "source": { "type": "docs", "ref": "fixtures/acme/docs/architecture.md" },
+    "title": "Acme architecture notes",
+    "kind": "readme",
+    "summary": "Ingestion depends on Vault for secrets; Platform owns Vault and Data Engineering owns Airflow.",
+    "excerpts": [
+      { "quote": "Ingestion depends on Vault for secrets.", "why": "cross-team dependency" }
+    ],
+    "entities": ["ingestion", "vault"],
+    "topics": ["architecture"],
+    "fetched_at": "2026-08-30T09:00:00Z",
+    "updated_at_source": "2026-07-15T00:00:00Z",
+    "content_hash": "3333333333333333333333333333333333333333333333333333333333333333"
+  }
+]
