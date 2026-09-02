@@ -57,12 +57,12 @@ Run the Context, Evidence, Delivery, and Risk gates from enigma-core
 `references/gates.md`. Report any weak gate in the output ("Evidence Gate:
 weak — no delivery data newer than 3 weeks").
 
-Write `reports/status-<id>-<YYYY-MM-DD>.md` containing: title + date, gate
+Write `.enigma/reports/status-<id>-<YYYY-MM-DD>.md` containing: title + date, gate
 results, the Judge's assessment verbatim, and a provenance appendix (each
 key finding's status and source type). Present the same content in chat.
 
 ## 7. Record
 
-- `node ${CLAUDE_PLUGIN_ROOT}/scripts/update-ledger.mjs --dir . --entry '{"type":"status.assessed","entity":"<id>","source":"enigma","change":{"overall":"<one-line health call>","report":"reports/status-<id>-<date>.md"}}'`
+- `node ${CLAUDE_PLUGIN_ROOT}/scripts/update-ledger.mjs --dir . --entry '{"type":"status.assessed","entity":"<id>","source":"enigma","change":{"overall":"<one-line health call>","report":".enigma/reports/status-<id>-<date>.md"}}'`
 - Append notable NEW facts discovered during this run to
   `.enigma/memory/facts.jsonl` (if not already done in step 2).
