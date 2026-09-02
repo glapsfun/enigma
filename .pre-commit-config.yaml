@@ -1,0 +1,36 @@
+# Optional local mirror of CI. Install with:
+#   pre-commit install
+# CI is the real gate -- `git commit --no-verify` stays a working escape hatch.
+default_install_hook_types: [pre-commit]
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-json
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=200]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        # Two trailing spaces are a hard line break in Markdown.
+        args: [--markdown-linebreak-ext=md]
+
+  - repo: local
+    hooks:
+      # pre-commit does not use a shell: `entry` is shlex-split and exec'd, so
+      # the glob below stays one token and Node expands it. Do not add quotes.
+      - id: enigma-lint-repo
+        name: enigma structure lint
+        entry: node scripts/dev/lint-repo.mjs --dir .
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: enigma-tests
+        name: node --test
+        entry: node --test scripts/test/*.test.mjs
+        language: system
+        pass_filenames: false
+        always_run: true
