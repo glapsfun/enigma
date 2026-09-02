@@ -1,0 +1,60 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { nowIso, writeJson, appendJsonl } from '../lib/enigma.mjs';
+import { buildMap } from '../build-map.mjs';
+import { validateState } from '../validate-state.mjs';
+
+const prov = () => ({
+  value: 'owns', status: 'FACT',
+  source: { type: 'confluence', ref: '1' }, confidence: 0.9, observed_at: nowIso(),
+});
+
+async function healthyWorkspace() {
+  const root = await mkdtemp(path.join(tmpdir(), 'enigma-'));
+  await buildMap(root, {
+    entities: {
+      teams: [{ id: 't1', name: 'T1' }],
+      people: [{ id: 'p1', name: 'P1', team: 't1' }],
+      projects: [{ id: 'proj1', name: 'Proj', team: 't1', status: 'active' }],
+      components: [{ id: 'c1', name: 'C1' }],
+    },
+    relationships: [{ from: 't1', type: 'owns', to: 'c1', provenance: prov() }],
+  });
+  return root;
+}
+
+test('healthy workspace validates clean', async () => {
+  const root = await healthyWorkspace();
+  const res = await validateState(root);
+  assert.deepEqual(res.errors, []);
+  assert.equal(res.ok, true);
+});
+
+test('missing .enigma directory is a single clear error', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'enigma-'));
+  const res = await validateState(root);
+  assert.equal(res.ok, false);
+  assert.ok(res.errors[0].includes('/enigma:init'));
+});
+
+test('detects corrupt json, bad envelope, and map entity missing from ledger', async () => {
+  const root = await healthyWorkspace();
+  // corrupt one map file
+  await writeFile(path.join(root, '.enigma/map/components.json'), '{not json');
+  // fact with an invalid envelope
+  await appendJsonl(path.join(root, '.enigma/memory/facts.jsonl'), {
+    value: 'x', status: 'GUESS', source: {}, confidence: 5, observed_at: 'nope',
+  });
+  // team added behind the ledger's back
+  await writeJson(path.join(root, '.enigma/map/teams.json'), [
+    { id: 't1', name: 'T1' }, { id: 'ghost', name: 'Ghost' },
+  ]);
+  const res = await validateState(root);
+  assert.equal(res.ok, false);
+  assert.ok(res.errors.some((e) => e.includes('components.json')));
+  assert.ok(res.errors.some((e) => e.includes('facts.jsonl')));
+  assert.ok(res.errors.some((e) => e.includes('ghost') && e.includes('ledger')));
+});
