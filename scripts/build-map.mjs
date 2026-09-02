@@ -2,7 +2,9 @@
 // Normalizes candidate entities into .enigma/map/*.json.
 // All mutations go through the ledger first (spec: Contract 2).
 import path from 'node:path';
-import { enigmaDir, readJson, writeJson, parseArgs, isMain } from './lib/enigma.mjs';
+import {
+  enigmaDir, readJson, writeJson, parseArgs, isMain, envelopeErrors,
+} from './lib/enigma.mjs';
 import { appendLedger } from './update-ledger.mjs';
 
 const KINDS = { teams: 'team', people: 'person', projects: 'project', components: 'component' };
@@ -13,19 +15,35 @@ export async function buildMap(root, candidates) {
   const errors = [];
 
   const ids = new Set();
+  const idKind = new Map();
   const existing = {};
+  const claim = (id, kind) => {
+    const prev = idKind.get(id);
+    if (prev && prev !== kind) {
+      errors.push(`${kind}: id "${id}" is already a ${KINDS[prev]} in ${prev}.json — ids must be unique across kinds`);
+      return;
+    }
+    idKind.set(id, kind);
+    ids.add(id);
+  };
   for (const kind of Object.keys(KINDS)) {
     existing[kind] = await readJson(path.join(mapDir, `${kind}.json`), []);
-    for (const e of existing[kind]) ids.add(e.id);
+    for (const e of existing[kind]) claim(e.id, kind);
+  }
+  for (const kind of Object.keys(KINDS)) {
     for (const e of entities[kind] ?? []) {
       if (typeof e.id !== 'string' || !e.id) errors.push(`${kind}: entity without id (${e.name ?? '?'})`);
-      else ids.add(e.id);
+      else claim(e.id, kind);
     }
   }
-  for (const r of candidates.relationships ?? []) {
-    if (!ids.has(r.from)) errors.push(`relationship ${r.from} -[${r.type}]-> ${r.to}: unknown "from" ${r.from}`);
-    if (!ids.has(r.to)) errors.push(`relationship ${r.from} -[${r.type}]-> ${r.to}: unknown "to" ${r.to}`);
-  }
+  (candidates.relationships ?? []).forEach((r, i) => {
+    const where = `relationship ${r.from} -[${r.type}]-> ${r.to}`;
+    if (!ids.has(r.from)) errors.push(`${where}: unknown "from" ${r.from}`);
+    if (!ids.has(r.to)) errors.push(`${where}: unknown "to" ${r.to}`);
+    // validate-state rejects a provenance-less relationship as an error, and the
+    // map is script-owned + the ledger append-only — so catch it before writing.
+    errors.push(...envelopeErrors(r.provenance, `relationships[${i}] ${where}: provenance`));
+  });
   if (errors.length) return { ok: false, errors };
 
   const summary = { added: 0, updated: 0, unchanged: 0 };

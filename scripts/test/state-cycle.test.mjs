@@ -92,3 +92,31 @@ test('diffState reports incomplete sources, excluded consent, and resumable queu
   assert.ok(res.fresh.includes('docs'));
   assert.deepEqual(res.resume.map((q) => q.area), ['data-platform']);
 });
+
+test('diffState lists sources with no consent decision so init can ask before reading', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'enigma-'));
+  await writeJson(path.join(root, '.enigma/index/sources.json'), {
+    sources: [
+      { id: 'jira', status: 'available', consent: 'approved' },
+      { id: 'confluence', status: 'available', consent: 'limited' },
+      { id: 'github', status: 'available' },
+      { id: 'slack', status: 'available', consent: 'excluded' },
+    ],
+  });
+  const res = await diffState(root);
+  assert.deepEqual(res.needs_consent, ['github']);
+  assert.deepEqual(res.excluded, ['slack']);
+});
+
+test('a corrupt last_scanned forces a refresh instead of pinning the source as fresh', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'enigma-'));
+  await writeJson(path.join(root, '.enigma/index/sources.json'), {
+    sources: [{ id: 'docs', status: 'available', consent: 'approved' }],
+  });
+  await writeJson(path.join(root, '.enigma/state/discovery.json'), {
+    sources: { docs: { last_scanned: 'not-a-date', complete: true } }, queue: [],
+  });
+  const res = await diffState(root);
+  assert.deepEqual(res.refresh, ['docs']);
+  assert.deepEqual(res.fresh, []);
+});

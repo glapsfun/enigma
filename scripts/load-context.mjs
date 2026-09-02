@@ -43,9 +43,13 @@ export async function loadContext(root, entityId) {
     .filter((e) => relatedIds.has(e.entity))
     .slice(-20);
 
+  const fetchedMs = (item) => {
+    const t = Date.parse(item.fetched_at ?? '');
+    return Number.isNaN(t) ? 0 : t; // an undated item sorts oldest, never NaN
+  };
   const evidence = (await readEvidence(root))
     .filter((item) => (item.entities ?? []).some((id) => relatedIds.has(id)))
-    .sort((a, b) => Date.parse(b.fetched_at ?? 0) - Date.parse(a.fetched_at ?? 0))
+    .sort((a, b) => fetchedMs(b) - fetchedMs(a))
     .slice(0, 30);
   const cov = await coverage(root, entityId);
 

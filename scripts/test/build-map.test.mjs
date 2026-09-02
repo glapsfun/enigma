@@ -93,3 +93,32 @@ test('an entity with no aliases gains no aliases field', async () => {
   assert.equal(components[0].aliases, undefined);
   assert.equal(components[0].kind, 'service');
 });
+
+test('a relationship without a valid provenance envelope is rejected before any write', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'enigma-'));
+  const res = await buildMap(root, {
+    entities: { teams: [{ id: 't1', name: 'T1' }], components: [{ id: 'c1', name: 'C1' }] },
+    relationships: [{ from: 't1', type: 'owns', to: 'c1' }],
+  });
+  assert.equal(res.ok, false);
+  assert.ok(res.errors.some((e) => e.includes('provenance')));
+  // Nothing was written, so validate-state cannot be bricked by this batch.
+  assert.deepEqual(await readJson(path.join(root, '.enigma/map/relationships.json'), []), []);
+  assert.deepEqual(await readJsonl(path.join(root, '.enigma/ledger/changes.jsonl')), []);
+});
+
+test('an id cannot be claimed by two kinds', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'enigma-'));
+  await buildMap(root, {
+    entities: { projects: [{ id: 'vault', name: 'Vault programme' }] },
+    relationships: [],
+  });
+  const res = await buildMap(root, {
+    entities: { components: [{ id: 'vault', name: 'Vault service' }] },
+    relationships: [],
+  });
+  assert.equal(res.ok, false);
+  assert.ok(res.errors.some((e) => e.includes('vault') && e.includes('unique across kinds')));
+  const projects = await readJson(path.join(root, '.enigma/map/projects.json'));
+  assert.equal(projects[0].name, 'Vault programme', 'the original entity is untouched');
+});

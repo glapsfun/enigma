@@ -21,6 +21,7 @@ export async function validateState(root) {
   }
 
   const mapIds = new Set();
+  const idKind = new Map();
   const perKind = {};
   for (const kind of KINDS) {
     const file = path.join(dir, 'map', `${kind}.json`);
@@ -31,6 +32,11 @@ export async function validateState(root) {
       for (const e of list) {
         if (seen.has(e.id)) errors.push(`${kind}.json: duplicate id "${e.id}"`);
         seen.add(e.id);
+        if (idKind.has(e.id) && idKind.get(e.id) !== kind) {
+          warnings.push(`${kind}.json: id "${e.id}" is also in ${idKind.get(e.id)}.json — the derived index keeps only one of them`);
+        } else {
+          idKind.set(e.id, kind);
+        }
         mapIds.add(e.id);
       }
     } catch (err) {

@@ -38,13 +38,17 @@ export async function readJsonl(file) {
     if (err.code === 'ENOENT') return [];
     throw err;
   }
-  return text.split('\n').filter(Boolean).map((line, i) => {
-    try {
-      return JSON.parse(line);
-    } catch {
-      throw new Error(`${file}:${i + 1} is not valid JSON`);
-    }
-  });
+  // Number lines before dropping blanks so the error points at the real line.
+  return text.split('\n')
+    .map((line, i) => [line, i + 1])
+    .filter(([line]) => Boolean(line))
+    .map(([line, lineNo]) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        throw new Error(`${file}:${lineNo} is not valid JSON`);
+      }
+    });
 }
 
 const STATUSES = ['FACT', 'INFERENCE', 'ASSUMPTION', 'UNKNOWN'];

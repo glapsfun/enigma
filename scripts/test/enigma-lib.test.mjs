@@ -103,3 +103,10 @@ test('readEvidence throws with the file path on corrupt JSON', async () => {
   await writeFile(path.join(root, '.enigma/evidence/docs/docs-bbbbbbbb.json'), '{not json');
   await assert.rejects(() => readEvidence(root), /docs-bbbbbbbb\.json/);
 });
+
+test('readJsonl reports the real line number when the file has blank lines', async () => {
+  const dir = await tmp();
+  const file = path.join(dir, 'log.jsonl');
+  await writeFile(file, '{"n":1}\n\n{"n":2}\n{oops\n');
+  await assert.rejects(() => readJsonl(file), /log\.jsonl:4 is not valid JSON/);
+});

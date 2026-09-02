@@ -51,8 +51,30 @@ test('entity coverage lists that area only', async () => {
   const res = await coverage(root, 'data-platform');
   assert.equal(res.entity.id, 'data-platform');
   assert.equal(res.entity.areas.length, 2);
-  assert.equal(res.entity.deep_done, true);
   assert.equal(res.entity.pending, 1);
+  assert.equal(res.entity.deep_done, false,
+    'one source still pending means the deep pass is not done');
+});
+
+test('deep_done is true only when every queued source for the area is done', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'enigma-'));
+  await checkpoint(root, {
+    label: 'deep',
+    queue: [
+      { area: 'vault', source: 'docs', depth: 'deep', status: 'done' },
+      { area: 'vault', source: 'jira', depth: 'deep', status: 'done' },
+    ],
+  });
+  const res = await coverage(root, 'vault');
+  assert.equal(res.entity.deep_done, true);
+  assert.equal(res.entity.pending, 0);
+});
+
+test('an area that was never queued is not reported as done', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'enigma-'));
+  const res = await coverage(root, 'never-queued');
+  assert.deepEqual(res.entity.areas, []);
+  assert.equal(res.entity.deep_done, false, 'no queue entries is not the same as finished');
 });
 
 test('an unscanned workspace reports zeros rather than throwing', async () => {

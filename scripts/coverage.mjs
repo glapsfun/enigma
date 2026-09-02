@@ -47,7 +47,10 @@ export async function coverage(root, entityId = null) {
     result.entity = {
       id: entityId,
       areas,
-      deep_done: areas.some((e) => e.status === 'done'),
+      // Every queued source must be done. One finished source while another is
+      // still pending is not a finished deep pass, and an area that was never
+      // queued is unscanned rather than complete.
+      deep_done: areas.length > 0 && areas.every((e) => e.status === 'done'),
       pending: areas.filter((e) => e.status !== 'done').length,
     };
   }

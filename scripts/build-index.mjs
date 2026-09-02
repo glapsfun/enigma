@@ -56,6 +56,13 @@ export async function buildIndex(root) {
     for (const t of new Set(tokenize(String(f.value ?? '')))) addTerm(t, f.entity, W.fact);
   }
 
+  // decisions.jsonl already counts toward index staleness — index it too.
+  for (const d of await readJsonl(path.join(dir, 'memory', 'decisions.jsonl'))) {
+    if (!d.entity || !entities[d.entity]) continue;
+    const text = `${d.decision ?? ''} ${d.rationale ?? ''} ${d.value ?? ''}`;
+    for (const t of new Set(tokenize(text))) addTerm(t, d.entity, W.fact);
+  }
+
   for (const item of await readEvidence(root)) {
     for (const id of item.entities ?? []) {
       if (entities[id]) entities[id].evidence_count++;

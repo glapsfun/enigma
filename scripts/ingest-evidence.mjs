@@ -105,7 +105,7 @@ if (isMain(import.meta.url)) {
     process.exit(1);
   }
   const parsed = await readJson(args.items);
-  const items = Array.isArray(parsed) ? parsed : parsed.evidence ?? [];
+  const items = Array.isArray(parsed) ? parsed : parsed?.evidence ?? [];
   const result = await ingestEvidence(root, items);
   console.log(JSON.stringify(result, null, 2));
   if (!result.ok) process.exit(1);

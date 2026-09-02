@@ -6,6 +6,9 @@ import {
 } from './lib/enigma.mjs';
 import { buildIndex, indexIsStale } from './build-index.mjs';
 
+// Finite so it survives JSON.stringify (Infinity serializes to null).
+const EXACT_SCORE = Number.MAX_SAFE_INTEGER;
+
 export async function query(root, q, { kind = null, limit = 10 } = {}) {
   if (await indexIsStale(root)) await buildIndex(root);
 
@@ -18,7 +21,7 @@ export async function query(root, q, { kind = null, limit = 10 } = {}) {
   const lower = text.toLowerCase();
   const kindOk = (id) => !kind || entities[id]?.kind === kind;
   const entityHit = (id, why) => ({
-    ref: id, kind: entities[id].kind, score: Infinity, title: entities[id].name, why: [why],
+    ref: id, kind: entities[id].kind, score: EXACT_SCORE, title: entities[id].name, why: [why],
   });
 
   if (entities[text] && kindOk(text)) {
@@ -47,6 +50,13 @@ export async function query(root, q, { kind = null, limit = 10 } = {}) {
     return a[0] < b[0] ? -1 : 1;
   });
 
+  // Resolution looks at every ranked entity: `limit` trims the displayed hit
+  // list, and high-scoring evidence must not push a real entity out of it and
+  // turn a known id into a false "no coverage".
+  const entityHits = ranked
+    .filter(([ref]) => entities[ref] && kindOk(ref))
+    .map(([ref, { score, why }]) => ({ ref, kind: entities[ref].kind, score, title: entities[ref].name, why }));
+
   const hits = [];
   for (const [ref, { score, why }] of ranked) {
     if (hits.length >= limit) break;
@@ -60,7 +70,6 @@ export async function query(root, q, { kind = null, limit = 10 } = {}) {
     }
   }
 
-  const entityHits = hits.filter((h) => h.kind !== 'evidence');
   let resolved = null;
   let candidates = [];
   if (entityHits.length === 1) {

@@ -12,16 +12,19 @@ export async function diffState(root, maxAgeHours = 24) {
   const fresh = [];
   const unavailable = [];
   const excluded = [];
+  const needs_consent = [];
   for (const s of sources) {
     if (s.consent === 'excluded') { excluded.push(s.id); continue; }
     if (s.status !== 'available') { unavailable.push(s.id); continue; }
+    // Invariant 11: nothing is read before sources.json records a decision.
+    if (!['approved', 'limited'].includes(s.consent)) needs_consent.push(s.id);
     const state = discovery.sources?.[s.id] ?? {};
-    const last = state.last_scanned;
-    if (!last || Date.parse(last) < cutoff || state.complete === false) refresh.push(s.id);
+    const lastMs = state.last_scanned ? Date.parse(state.last_scanned) : NaN;
+    if (Number.isNaN(lastMs) || lastMs < cutoff || state.complete === false) refresh.push(s.id);
     else fresh.push(s.id);
   }
   const resume = (discovery.queue ?? []).filter((q) => q.status !== 'done');
-  return { refresh, fresh, unavailable, excluded, resume };
+  return { refresh, fresh, unavailable, excluded, needs_consent, resume };
 }
 
 if (isMain(import.meta.url)) {

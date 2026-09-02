@@ -86,3 +86,26 @@ test('limit caps the hit list', async () => {
   const res = await query(root, 'data platform security review ingestion vault', { limit: 2 });
   assert.ok(res.hits.length <= 2);
 });
+
+test('a known entity resolves even when many evidence items outrank it', async () => {
+  const root = await workspace();
+  // 14 items all mentioning the project, so evidence fills the whole hit list.
+  const items = [];
+  for (let i = 0; i < 14; i++) {
+    items.push({
+      source: { type: 'jira', ref: `DATA-${i}` },
+      title: `Data platform migration note ${i}`, kind: 'ticket',
+      summary: 'Data platform migration progress on the data platform.',
+      excerpts: [{ quote: 'Data platform migration continues.', why: 'progress' }],
+      entities: ['data-platform'], topics: ['delivery'],
+      fetched_at: nowIso(), content_hash: sha256Hex(`note ${i}`),
+    });
+  }
+  await ingestEvidence(root, items);
+  await buildIndex(root);
+
+  const res = await query(root, 'the data platform migration');
+  assert.equal(res.resolved, 'data-platform',
+    'resolution must scan every ranked entity, not just the truncated hit list');
+  assert.ok(res.hits.length <= 10);
+});

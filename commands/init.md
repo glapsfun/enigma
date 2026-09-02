@@ -18,8 +18,10 @@ If `./.enigma/` exists:
 - Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/diff-state.mjs --dir .`. Its
   `resume` array lists deep-pass queue entries that are not done.
 - `--deep <ids>` — append those areas to the queue and go straight to Phase 5.
-- No `--full` — skip Phases 1-2 unless `--reconsent` is present, re-scan only
-  the sources in `refresh`, then continue with `resume`.
+- No `--full` — skip Phase 1 unless `--reconsent` is present, re-scan only
+  the sources in `refresh`, then continue with `resume`. Run Phase 2 for every
+  id in `needs_consent` (and for all sources when `--reconsent` is present) —
+  a source without a recorded consent decision is never read (invariant 11).
 - `--full` — reset cursors (keep consent and evidence) and run every phase.
 
 ## Phase 1 — Harness inventory (you, not a script)
