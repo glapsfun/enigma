@@ -1,0 +1,6 @@
+{
+  "name": "enigma",
+  "description": "Management copilot for engineering leaders: builds persistent organizational context (company map, memory, ledger) from sources your harness already exposes, then runs evidence-gated management workflows like project status.",
+  "version": "0.1.0",
+  "author": { "name": "vladtara" }
+}
