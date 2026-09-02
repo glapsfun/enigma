@@ -1,0 +1,23 @@
+{
+  "skill_name": "enigma",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Run /enigma:init --docs ./docs for this workspace and show me the company overview.",
+      "expected_output": "A .enigma/ tree with Acme's teams/people/projects/components mapped, relationships (data-eng owns airflow, ingestion depends_on vault, ...), process classifications marked INFERENCE (Data Engineering=Scrum-like, Platform=Kanban-like), ledger entries for every entity, and an explicit UNKNOWN list.",
+      "files": ["fixtures/acme"]
+    },
+    {
+      "id": 2,
+      "prompt": "/enigma:status data-platform",
+      "expected_output": "Full pipeline run: validate, context bundle, five oracle dispatches in one message, Judge assessment with all six sections, gate results reported, report file written, ledger entry appended.",
+      "files": ["fixtures/acme (after init)"]
+    },
+    {
+      "id": 3,
+      "prompt": "/enigma:status data-platform — is the June date still realistic?",
+      "expected_output": "The roadmap-June vs tickets-September contradiction is surfaced explicitly (Risk and/or Delivery oracle finding, appears in Judge's Disagreements or Recommendation), including the unowned Security review as a named blocker. The assessment does NOT parrot the June date as fact.",
+      "files": ["fixtures/acme (after init)"]
+    }
+  ]
+}
