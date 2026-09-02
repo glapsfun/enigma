@@ -39,6 +39,8 @@ export async function buildMap(root, candidates) {
         await appendLedger(root, { type: `${singular}.added`, entity: cand.id, source: cand.source?.type ?? 'discovery', change: cand });
       } else {
         const merged = { ...prev, ...cand };
+        const mergedAliases = [...new Set([...(prev.aliases ?? []), ...(cand.aliases ?? [])])];
+        if (mergedAliases.length) merged.aliases = mergedAliases;
         if (JSON.stringify(merged) === JSON.stringify(prev)) {
           summary.unchanged++;
         } else {
