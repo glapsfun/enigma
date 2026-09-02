@@ -1,0 +1,48 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { writeJson, readJson } from '../lib/enigma.mjs';
+import { diffState } from '../diff-state.mjs';
+import { checkpoint } from '../checkpoint.mjs';
+
+async function workspace() {
+  const root = await mkdtemp(path.join(tmpdir(), 'enigma-'));
+  await writeJson(path.join(root, '.enigma/index/sources.json'), {
+    sources: [
+      { id: 'jira', status: 'available' },
+      { id: 'slack', status: 'degraded' },
+      { id: 'docs', status: 'available' },
+    ],
+  });
+  return root;
+}
+
+test('diffState: unscanned sources need refresh; degraded are unavailable', async () => {
+  const root = await workspace();
+  const res = await diffState(root);
+  assert.deepEqual(res.refresh.sort(), ['docs', 'jira']);
+  assert.deepEqual(res.unavailable, ['slack']);
+});
+
+test('checkpoint marks sources scanned; diffState then reports them fresh', async () => {
+  const root = await workspace();
+  const rec = await checkpoint(root, { label: 'init', scanned: ['jira'] });
+  assert.ok(!Number.isNaN(Date.parse(rec.time)));
+  const res = await diffState(root);
+  assert.deepEqual(res.fresh, ['jira']);
+  assert.deepEqual(res.refresh, ['docs']);
+  const cps = await readJson(path.join(root, '.enigma/state/checkpoints.json'));
+  assert.equal(cps.length, 1);
+  assert.equal(cps[0].label, 'init');
+});
+
+test('old scans fall back into refresh after max age', async () => {
+  const root = await workspace();
+  await writeJson(path.join(root, '.enigma/state/discovery.json'), {
+    sources: { jira: { last_scanned: '2020-01-01T00:00:00Z' } },
+  });
+  const res = await diffState(root, 24);
+  assert.ok(res.refresh.includes('jira'));
+});
