@@ -1,0 +1,10 @@
+{
+  "sources": {
+    "docs": { "last_scanned": "2026-08-30T09:00:00Z", "depth": "shallow", "cursor": "docs/architecture.md", "read": 2, "known": 4, "complete": false }
+  },
+  "queue": [
+    { "area": "data-platform", "source": "docs", "depth": "deep", "status": "done" },
+    { "area": "ingestion", "source": "docs", "depth": "deep", "status": "pending" },
+    { "area": "platform", "source": "docs", "depth": "deep", "status": "pending" }
+  ]
+}

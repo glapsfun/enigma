@@ -5,19 +5,49 @@
       "id": 1,
       "prompt": "Run /enigma:init --docs ./docs for this workspace and show me the company overview.",
       "expected_output": "A .enigma/ tree with Acme's teams/people/projects/components mapped, relationships (data-eng owns airflow, ingestion depends_on vault, ...), process classifications marked INFERENCE (Data Engineering=Scrum-like, Platform=Kanban-like), ledger entries for every entity, and an explicit UNKNOWN list.",
-      "files": ["fixtures/acme"]
+      "files": [
+        "fixtures/acme"
+      ]
     },
     {
       "id": 2,
       "prompt": "/enigma:status data-platform",
       "expected_output": "Full pipeline run: validate, context bundle, five oracle dispatches in one message, Judge assessment with all six sections, gate results reported, report file written, ledger entry appended.",
-      "files": ["fixtures/acme (after init)"]
+      "files": [
+        "fixtures/acme (after init)"
+      ]
     },
     {
       "id": 3,
       "prompt": "/enigma:status data-platform — is the June date still realistic?",
       "expected_output": "The roadmap-June vs tickets-September contradiction is surfaced explicitly (Risk and/or Delivery oracle finding, appears in Judge's Disagreements or Recommendation), including the unowned Security review as a named blocker. The assessment does NOT parrot the June date as fact.",
-      "files": ["fixtures/acme (after init)"]
+      "files": [
+        "fixtures/acme (after init)"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Run /enigma:init --docs ./fixtures/acme/docs for this workspace.",
+      "expected_output": "A consent round is asked BEFORE anything is read, and every source in .enigma/index/sources.json ends with a consent value. A shallow pass runs scouts in one message, then a checkpoint question round, then deep passes. Evidence files exist under .enigma/evidence/ with verbatim excerpts and content hashes. .enigma/index/aliases.json resolves DP to data-platform. The final summary ends with the UNKNOWN list and the remaining queue.",
+      "files": [
+        "fixtures/acme"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "/enigma:status DP",
+      "expected_output": "The alias DP resolves to data-platform through query.mjs without asking the user for an exact id. The assessment cites evidence by title and source ref, and the Evidence Gate quotes coverage numbers (depth and read/known per source) rather than a bare adjective.",
+      "files": [
+        "fixtures/acme (after init)"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "/enigma:init  (re-run after stopping mid-way through the deep passes)",
+      "expected_output": "Preflight reads state/discovery.json, reports the resumable queue entries, skips the consent round and any source already complete and fresh, and continues the pending deep-pass areas instead of rescanning from scratch. No duplicate evidence is written: unchanged content re-ingests as skipped.",
+      "files": [
+        "fixtures/acme (mid-queue)"
+      ]
     }
   ]
 }
