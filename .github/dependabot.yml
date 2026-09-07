@@ -1,0 +1,10 @@
+version: 2
+updates:
+  # Only github-actions. There is no npm ecosystem block on purpose: this repo
+  # is stdlib-only with no package.json, so there is nothing for it to update.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci

@@ -1,0 +1,51 @@
+# BLOCKED: this workflow has no working runner yet.
+#
+# `claude plugin eval` expects `<eval dir>/**/case.yaml`, or `prompt.md` plus
+# `graders/*.md`. `evals/evals.json` is a different shape
+# ({skill_name, evals: [{id, prompt, expected_output, files}]}), and cases
+# 2, 3, 5 and 6 declare `files: "fixtures/acme (after init)"` -- they depend on
+# state produced by case 1 and are not independently runnable.
+#
+# Unblocking it is separate work: migrate evals/evals.json to
+# evals/<id>/prompt.md + graders/*.md and make every case self-contained.
+# Until then this runs on demand only and is expected to fail.
+#
+# Never on push or pull_request. Model-graded evals are nondeterministic, cost
+# API credits per run, and fork PRs cannot read secrets -- they would fail for
+# reasons unrelated to the change.
+name: evals
+
+on:
+  workflow_dispatch:
+    inputs:
+      eval_ids:
+        description: Comma-separated eval ids to run (blank runs all)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    name: plugin evals
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code@2.1.258
+      - name: Run evals
+        continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EVAL_IDS: ${{ inputs.eval_ids }}
+        run: claude plugin eval . --eval-dir evals 2>&1 | tee eval-report.txt
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: eval-report
+          path: eval-report.txt
+          if-no-files-found: ignore

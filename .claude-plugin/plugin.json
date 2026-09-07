@@ -2,5 +2,15 @@
   "name": "enigma",
   "description": "Management copilot for engineering leaders: builds persistent organizational context (company map, memory, ledger) from sources your harness already exposes, then runs evidence-gated management workflows like project status.",
   "version": "0.1.0",
-  "author": { "name": "vladtara" }
+  "author": { "name": "vladtara" },
+  "homepage": "https://github.com/glapsfun/enigma",
+  "repository": "https://github.com/glapsfun/enigma",
+  "license": "MIT",
+  "keywords": [
+    "management",
+    "engineering-management",
+    "project-status",
+    "organizational-context",
+    "evidence-gated"
+  ]
 }

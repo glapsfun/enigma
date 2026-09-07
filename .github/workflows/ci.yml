@@ -1,0 +1,64 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['22.x', '24.x']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+      # No `npm ci` and no `cache: npm`: this repo is stdlib-only with no
+      # lockfile, and the cache step would fail looking for one.
+      - name: Run tests
+        run: node --test 'scripts/test/*.test.mjs'
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Structural lint
+        run: node scripts/dev/lint-repo.mjs --dir .
+
+  plugin-validate:
+    name: plugin manifest
+    runs-on: ubuntu-latest
+    # Defence in depth: the checks that matter are duplicated dependency-free
+    # in lint-repo.mjs. Installing the CLI globally on a runner is CI tooling,
+    # not a repo dependency -- it adds nothing to the tree.
+    # `continue-on-error` until one run proves the CLI needs no auth, network,
+    # or writable $HOME in a clean container; then drop it.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code@2.1.258
+      # Not `--strict`: it fails on the known, correct warning that CLAUDE.md
+      # at the plugin root is not loaded as plugin context.
+      - name: Validate plugin
+        run: claude plugin validate .

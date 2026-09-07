@@ -147,3 +147,6 @@ docs/*
 
 # Enigma workspace state (belongs in the user's workspace, never in the plugin repo)
 .enigma/
+
+# macOS
+.DS_Store
