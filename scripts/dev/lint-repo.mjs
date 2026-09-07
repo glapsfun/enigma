@@ -76,9 +76,14 @@ const SPECIFIER_PATTERNS = [
 ];
 
 function importSpecifiers(source) {
+  // Strip comments so we don't treat commented-out import(...) examples as real dependencies.
+  const stripped = source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '');
+
   const found = [];
   for (const re of SPECIFIER_PATTERNS) {
-    for (const m of source.matchAll(re)) found.push(m[1]);
+    for (const m of stripped.matchAll(re)) found.push(m[1]);
   }
   return found;
 }
