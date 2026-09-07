@@ -209,6 +209,19 @@ test('a bare import specifier in a script is an error', async () => {
   assert.match(joined(res), /scripts\/demo\.mjs: .*"lodash"/);
 });
 
+test('commented-out bare imports do not fail the stdlib-only check', async () => {
+  const { root, w } = await healthyPlugin();
+  await w('scripts/demo.mjs', [
+    "import { isMain } from './lib/enigma.mjs';",
+    "export const demo = () => 'ok';",
+    "// await import('lodash');",
+    'if (isMain(import.meta.url)) { console.log(demo()); }',
+    '',
+  ].join('\n'));
+  const res = await lintRepo(root);
+  assert.deepEqual(res.errors, []);
+  assert.equal(res.ok, true);
+});
 test('a stray package.json or lockfile is an error', async () => {
   const { root, w } = await healthyPlugin();
   await w('package.json', '{"name":"nope"}\n');
